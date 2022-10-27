@@ -11,7 +11,7 @@ import (
 	"github.com/tofuoverdose/txstat/internal/stats"
 )
 
-func TestService_GetAddressWithGreatestExchangeDiff(t *testing.T) {
+func TestService_TopExchangeDiffAddress(t *testing.T) {
 	expectedAddr := "John Doe"
 
 	f := &MockFetcher{
@@ -37,7 +37,7 @@ func TestService_GetAddressWithGreatestExchangeDiff(t *testing.T) {
 	assert.Equal(t, expectedAddr, addr)
 }
 
-func TestService_GetAddressWithGreatestExchangeDiff_EmptyResult(t *testing.T) {
+func TestService_TopExchangeDiffAddressf_EmptyResult(t *testing.T) {
 	f := &MockFetcher{
 		ShouldReturnResult: nil,
 	}
@@ -48,7 +48,7 @@ func TestService_GetAddressWithGreatestExchangeDiff_EmptyResult(t *testing.T) {
 	assert.ErrorIs(t, stats.ErrEmptyBlockChain, err)
 }
 
-func TestService_GetAddressWithGreatestExchangeDiff_ErrorFromFetcher(t *testing.T) {
+func TestService_TopExchangeDiffAddress_ErrorFromFetcher(t *testing.T) {
 	testError := errors.New("error yo")
 	f := &MockFetcher{
 		ShouldReturnError: testError,
