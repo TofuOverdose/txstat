@@ -7,10 +7,10 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	gormux "github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 )
 
-func RegisterHttpServer(mux *gormux.Router, service Service) *gormux.Router {
+func RegisterHttpServer(router *mux.Router, service Service) *mux.Router {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeErrorFunc),
 	}
@@ -22,10 +22,10 @@ func RegisterHttpServer(mux *gormux.Router, service Service) *gormux.Router {
 			genericJsonResponseEncoder,
 			opts...,
 		)
-		mux.Handle("/exchange/top", h).Methods("GET")
+		router.Handle("/exchange/top", h).Methods("GET")
 	}
 
-	return mux
+	return router
 }
 
 func genericJsonResponseEncoder(_ context.Context, w http.ResponseWriter, res interface{}) error {

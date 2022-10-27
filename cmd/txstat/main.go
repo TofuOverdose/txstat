@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	gormux "github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 
 	"github.com/tofuoverdose/txstat/internal/fetcher"
 	"github.com/tofuoverdose/txstat/internal/stats"
@@ -22,8 +22,8 @@ func main() {
 	var logger log.Logger
 	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
 
-	mux := gormux.NewRouter()
-	mux.Use(requestLoggingMiddleware(logger))
+	router := mux.NewRouter()
+	router.Use(requestLoggingMiddleware(logger))
 
 	var statsService stats.Service
 	{
@@ -37,14 +37,14 @@ func main() {
 
 		statsService = stats.NewService(f)
 		statsService = stats.NewLoggingService(statsService, logger)
-		stats.RegisterHttpServer(mux.PathPrefix("/stats").Subrouter(), statsService)
+		stats.RegisterHttpServer(router.PathPrefix("/stats").Subrouter(), statsService)
 	}
 
 	errs := make(chan error, 2)
 	go func() {
 		addr := net.JoinHostPort("", mustGetEnv("HTTP_SERVER_PORT"))
 		level.Info(logger).Log("msg", "starting http server", "addr", addr)
-		errs <- nethttp.ListenAndServe(addr, mux)
+		errs <- nethttp.ListenAndServe(addr, router)
 	}()
 	go func() {
 		sig := make(chan os.Signal)
@@ -63,7 +63,7 @@ func mustGetEnv(key string) string {
 	return v
 }
 
-func requestLoggingMiddleware(logger log.Logger) gormux.MiddlewareFunc {
+func requestLoggingMiddleware(logger log.Logger) mux.MiddlewareFunc {
 	return func(next nethttp.Handler) nethttp.Handler {
 		return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
 			now := time.Now()
