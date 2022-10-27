@@ -86,6 +86,7 @@ func (stats exchangeStats) GetSortedByDiffDesc() []exchangeStat {
 	}
 	sort.SliceStable(ret, func(i, j int) bool {
 		a, b := ret[i].Diff, ret[j].Diff
+		a, b = a.Abs(a), b.Abs(b)
 		return a.Cmp(b) > 0
 	})
 	return ret

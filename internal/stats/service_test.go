@@ -72,13 +72,13 @@ func (f *MockFetcher) FetchTransactionsNLastBlocks(_ context.Context, _ uint) (<
 	go func() {
 		if f.ShouldReturnError != nil {
 			errChan <- f.ShouldReturnError
-			close(resChan)
+			close(errChan)
 			return
 		}
 		for _, tx := range f.ShouldReturnResult {
 			resChan <- tx
 		}
-		close(resChan)
+		close(errChan)
 	}()
 
 	return resChan, errChan
