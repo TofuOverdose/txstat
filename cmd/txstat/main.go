@@ -7,9 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	gormux "github.com/gorilla/mux"
+
 	"github.com/tofuoverdose/txstat/internal/fetcher"
 	"github.com/tofuoverdose/txstat/internal/stats"
 	"github.com/tofuoverdose/txstat/pkg/getblock/eth"
@@ -19,7 +22,8 @@ func main() {
 	var logger log.Logger
 	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
 
-	mux := nethttp.NewServeMux()
+	mux := gormux.NewRouter()
+	mux.Use(requestLoggingMiddleware(logger))
 
 	var statsService stats.Service
 	{
@@ -33,7 +37,7 @@ func main() {
 
 		statsService = stats.NewService(f)
 		statsService = stats.NewLoggingService(statsService, logger)
-		mux.Handle("/stats/", stats.MakeHttpHandler(statsService))
+		stats.RegisterHttpServer(mux.PathPrefix("/stats").Subrouter(), statsService)
 	}
 
 	errs := make(chan error, 2)
@@ -57,4 +61,18 @@ func mustGetEnv(key string) string {
 		panic(fmt.Sprintf("env variable %s is missing\n", key))
 	}
 	return v
+}
+
+func requestLoggingMiddleware(logger log.Logger) gormux.MiddlewareFunc {
+	return func(next nethttp.Handler) nethttp.Handler {
+		return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+			now := time.Now()
+			logger = log.With(logger, "uri", r.RequestURI)
+			logger.Log("msg", "received http request")
+			defer func(start time.Time) {
+				logger.Log("msg", "sent http response", "elapsed", time.Since(start))
+			}(now)
+			next.ServeHTTP(w, r)
+		})
+	}
 }

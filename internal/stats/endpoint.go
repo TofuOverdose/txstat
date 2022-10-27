@@ -2,6 +2,7 @@ package stats
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-kit/kit/endpoint"
 )
@@ -21,4 +22,17 @@ func makeTopExchangeDiffAddressEndpoint(s Service) endpoint.Endpoint {
 
 type topExchangeDiffResponse struct {
 	Address string `json:"address"`
+}
+
+func panicCatchingMiddleware(next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, req interface{}) (res interface{}, err error) {
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				err = fmt.Errorf("panic recovered: %s", rerr)
+				return
+			}
+		}()
+		res, err = next(ctx, req)
+		return
+	}
 }

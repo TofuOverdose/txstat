@@ -3,7 +3,6 @@ package stats
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
@@ -11,12 +10,11 @@ import (
 	gormux "github.com/gorilla/mux"
 )
 
-func MakeHttpHandler(service Service) http.Handler {
+func RegisterHttpServer(mux *gormux.Router, service Service) *gormux.Router {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(encodeErrorFunc),
 	}
 
-	mux := gormux.NewRouter()
 	{
 		h := kithttp.NewServer(
 			panicCatchingMiddleware(makeTopExchangeDiffAddressEndpoint(service)),
@@ -24,7 +22,7 @@ func MakeHttpHandler(service Service) http.Handler {
 			genericJsonResponseEncoder,
 			opts...,
 		)
-		mux.Handle("/stats/exchange/top", h).Methods("GET")
+		mux.Handle("/exchange/top", h).Methods("GET")
 	}
 
 	return mux
@@ -63,17 +61,4 @@ func encodeErrorFunc(_ context.Context, _ error, w http.ResponseWriter) {
 type response struct {
 	Result interface{} `json:"data,omitempty"`
 	Error  string      `json:"error,omitempty"`
-}
-
-func panicCatchingMiddleware(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, req interface{}) (res interface{}, err error) {
-		defer func() {
-			if rerr := recover(); rerr != nil {
-				err = fmt.Errorf("panic recovered: %s", rerr)
-				return
-			}
-		}()
-		res, err = next(ctx, req)
-		return
-	}
 }
