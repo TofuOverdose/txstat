@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/tofuoverdose/txstat/internal/txstat/domain/stats"
+
+	"github.com/tofuoverdose/txstat/internal/stats"
 )
 
 func TestService_GetAddressWithGreatestExchangeDiff(t *testing.T) {
@@ -31,7 +32,7 @@ func TestService_GetAddressWithGreatestExchangeDiff(t *testing.T) {
 	}
 
 	s := stats.NewService(f)
-	addr, err := s.GetAddressWithGreatestExchangeDiff(context.Background())
+	addr, err := s.TopExchangeDiffAddress(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, expectedAddr, addr)
 }
@@ -42,7 +43,7 @@ func TestService_GetAddressWithGreatestExchangeDiff_EmptyResult(t *testing.T) {
 	}
 
 	s := stats.NewService(f)
-	addr, err := s.GetAddressWithGreatestExchangeDiff(context.Background())
+	addr, err := s.TopExchangeDiffAddress(context.Background())
 	assert.Empty(t, addr)
 	assert.ErrorIs(t, stats.ErrEmptyBlockChain, err)
 }
@@ -54,7 +55,7 @@ func TestService_GetAddressWithGreatestExchangeDiff_ErrorFromFetcher(t *testing.
 	}
 
 	s := stats.NewService(f)
-	addr, err := s.GetAddressWithGreatestExchangeDiff(context.Background())
+	addr, err := s.TopExchangeDiffAddress(context.Background())
 	assert.Empty(t, addr)
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, testError)

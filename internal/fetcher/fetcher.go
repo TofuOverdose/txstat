@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/tofuoverdose/txstat/internal/txstat/domain/stats"
+	"github.com/tofuoverdose/txstat/internal/stats"
 	"github.com/tofuoverdose/txstat/pkg/getblock/eth"
 )
 
@@ -23,14 +23,12 @@ func (f *Fetcher) FetchTransactionsNLastBlocks(ctx context.Context, blocksCount 
 		for i := uint(0); i < blocksCount; i++ {
 			select {
 			case <-ctx.Done():
-				close(resChan)
 				errChan <- ctx.Err()
 				close(errChan)
 				return
 			default:
 				curBlock, err = f.Client.BlockNumber(ctx)
 				if err != nil {
-					close(resChan)
 					errChan <- fmt.Errorf("failed to get number of next block: %w", err)
 					close(errChan)
 					return
@@ -38,7 +36,6 @@ func (f *Fetcher) FetchTransactionsNLastBlocks(ctx context.Context, blocksCount 
 
 				block, err := f.Client.GetBlockByNumber(ctx, curBlock, true)
 				if err != nil {
-					close(resChan)
 					errChan <- fmt.Errorf("failed to get data for block %s: %w", curBlock, err)
 					close(errChan)
 					return
@@ -47,7 +44,6 @@ func (f *Fetcher) FetchTransactionsNLastBlocks(ctx context.Context, blocksCount 
 				for _, ethTx := range block.Transactions {
 					tx, err := transactionFromEth(ethTx)
 					if err != nil {
-						close(resChan)
 						errChan <- fmt.Errorf("failed to create transaction struct: %w", err)
 						close(errChan)
 						return
@@ -59,7 +55,6 @@ func (f *Fetcher) FetchTransactionsNLastBlocks(ctx context.Context, blocksCount 
 			}
 		}
 		close(errChan)
-		close(resChan)
 	}()
 
 	return resChan, errChan

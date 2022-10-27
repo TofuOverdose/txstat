@@ -12,18 +12,22 @@ const (
 	headBlockCount = 100
 )
 
-type Service struct {
+type Service interface {
+	TopExchangeDiffAddress(ctx context.Context) (string, error)
+}
+
+type service struct {
 	txf TransactionsFetcher
 }
 
-func NewService(txf TransactionsFetcher) *Service {
-	s := Service{
+func NewService(txf TransactionsFetcher) Service {
+	s := service{
 		txf: txf,
 	}
-	return &s
+	return s
 }
 
-func (s *Service) GetAddressWithGreatestExchangeDiff(ctx context.Context) (string, error) {
+func (s service) TopExchangeDiffAddress(ctx context.Context) (string, error) {
 	// this implementation uses map that accumulates all transactions for each address and then it sorts them
 	// it's super slow but straightforward
 	// todo rewrite to improve performance
@@ -51,8 +55,6 @@ fl:
 
 	return sorted[0].Addr, nil
 }
-
-var ErrEmptyBlockChain = errors.New("blockchain is empty")
 
 // aggregates exchangeStat by address
 type exchangeStats map[string]exchangeStat
@@ -94,3 +96,24 @@ type exchangeStat struct {
 	Diff *big.Int
 	Addr string
 }
+
+type serviceError struct {
+	code string
+	text string
+}
+
+func (e serviceError) Error() string {
+	return e.msg()
+}
+
+func (e serviceError) Failed() error {
+	return errors.New(e.msg())
+}
+
+func (e serviceError) msg() string {
+	return fmt.Sprintf("%s %s", e.code, e.text)
+}
+
+var (
+	ErrEmptyBlockChain = serviceError{"ErrEmptyBlockChain", "blockchain is empty"}
+)

@@ -1,53 +1,60 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"net"
 	nethttp "net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/tofuoverdose/txstat/internal/txstat/domain/stats"
-	"github.com/tofuoverdose/txstat/internal/txstat/fetcher"
-	"github.com/tofuoverdose/txstat/internal/txstat/ports/http"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/tofuoverdose/txstat/internal/fetcher"
+	"github.com/tofuoverdose/txstat/internal/stats"
 	"github.com/tofuoverdose/txstat/pkg/getblock/eth"
 )
 
 func main() {
-	ethClientUrl, ok := os.LookupEnv("TXSTAT_GETBLOCKIO_ENDPOINT")
-	if !ok {
-		log.Println("Fatal error: missing env variable TXSTAT_GETBLOCKIO_ENDPOINT")
-		os.Exit(1)
-	}
-	ethClientToken, ok := os.LookupEnv("TXSTAT_GETBLOCKIO_TOKEN")
-	if !ok {
-		log.Println("Fatal error: missing env variable TXSTAT_GETBLOCKIO_TOKEN")
-		os.Exit(1)
+	var logger log.Logger
+	logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+
+	mux := nethttp.NewServeMux()
+
+	var statsService stats.Service
+	{
+		f := &fetcher.Fetcher{
+			Client: eth.Client{
+				HttpClient: nethttp.Client{},
+				Url:        mustGetEnv("GETBLOCKIO_ETH_URL"),
+				Token:      mustGetEnv("GETBLOCKIO_ETH_TOKEN"),
+			},
+		}
+
+		statsService = stats.NewService(f)
+		statsService = stats.NewLoggingService(statsService, logger)
+		mux.Handle("/stats/", stats.MakeHttpHandler(statsService))
 	}
 
-	ethClient := eth.Client{
-		HttpClient: nethttp.Client{},
-		Url:        ethClientUrl,
-		Token:      ethClientToken,
-	}
+	errs := make(chan error, 2)
+	go func() {
+		addr := net.JoinHostPort("", mustGetEnv("HTTP_SERVER_PORT"))
+		level.Info(logger).Log("msg", "starting http server", "addr", addr)
+		errs <- nethttp.ListenAndServe(addr, mux)
+	}()
+	go func() {
+		sig := make(chan os.Signal)
+		signal.Notify(sig, syscall.SIGINT)
+		errs <- fmt.Errorf("%s", <-sig)
+	}()
 
-	f := &fetcher.Fetcher{Client: ethClient}
+	logger.Log("process exited", <-errs)
+}
 
-	statsService := stats.NewService(f)
-
-	httpServerPort, ok := os.LookupEnv("TXSTAT_HTTP_SERVER_ENDPOINT")
-	if !ok {
-		log.Println("Fatal error: missing env variable TXSTAT_HTTP_SERVER_ENDPOINT")
-		os.Exit(1)
+func mustGetEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		panic(fmt.Sprintf("env variable %s is missing\n", key))
 	}
-
-	httpServerConfig := http.ServerConfig{
-		Port: httpServerPort,
-	}
-	httpServer, err := http.NewServer(httpServerConfig, statsService)
-	if err != nil {
-		panic(err)
-	}
-
-	if err := httpServer.ListenAndServe(); err != nil {
-		panic(err)
-	}
+	return v
 }
