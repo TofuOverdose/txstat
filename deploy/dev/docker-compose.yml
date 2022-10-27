@@ -1,0 +1,17 @@
+version: "3.0"
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/dev/debug.Dockerfile
+      args:
+        bin_name: txstat
+    security_opt:
+      - seccomp:unconfined
+    env_file:
+      - ./txstat.env
+    ports:
+      - '8080:8080'
+      - '40000:40000'
+
