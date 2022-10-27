@@ -3,6 +3,7 @@ package stats
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
@@ -18,7 +19,7 @@ func MakeHttpHandler(service Service) http.Handler {
 	mux := gormux.NewRouter()
 	{
 		h := kithttp.NewServer(
-			makeTopExchangeDiffAddressEndpoint(service),
+			panicCatchingMiddleware(makeTopExchangeDiffAddressEndpoint(service)),
 			kithttp.NopRequestDecoder,
 			genericJsonResponseEncoder,
 			opts...,
@@ -60,6 +61,19 @@ func encodeErrorFunc(_ context.Context, _ error, w http.ResponseWriter) {
 }
 
 type response struct {
-	Result interface{} `json:"data"`
-	Error  string      `json:"error"`
+	Result interface{} `json:"data,omitempty"`
+	Error  string      `json:"error,omitempty"`
+}
+
+func panicCatchingMiddleware(next endpoint.Endpoint) endpoint.Endpoint {
+	return func(ctx context.Context, req interface{}) (res interface{}, err error) {
+		defer func() {
+			if rerr := recover(); rerr != nil {
+				err = fmt.Errorf("panic recovered: %s", rerr)
+				return
+			}
+		}()
+		res, err = next(ctx, req)
+		return
+	}
 }
